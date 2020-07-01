@@ -31,6 +31,7 @@ import           Disco.Context
 import           Disco.Desugar
 import           Disco.Eval
 import           Disco.Extensions
+import           Disco.Interactive.Commands
 import           Disco.Interactive.Parser
 import           Disco.Interpret.Core
 import           Disco.Module
@@ -40,6 +41,7 @@ import           Disco.Typecheck
 import           Disco.Typecheck.Erase
 import           Disco.Typecheck.Monad
 import           Disco.Types
+
 
 ------------------------------------------------------------
 
@@ -74,7 +76,7 @@ handleCMD :: String -> Disco IErr ()
 handleCMD "" = return ()
 handleCMD s = do
     exts <- use enabledExts
-    case (parseLine exts s) of
+    case (parseLine discoCommands exts s) of
       Left msg -> io $ putStrLn msg
       Right l -> handleLine l `catchError` (io . print  {- XXX pretty-print error -})
   where
