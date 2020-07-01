@@ -10,8 +10,8 @@
 -----------------------------------------------------------------------------
 
 module Disco.Interactive.Types
-  ( REPLExpr(..), ReplCommand(..), ReplCommandType(..)
-  ) where
+  ( REPLExpr(..), ReplCommand(..), ReplCommandType(..)) 
+  where
 
 import           Unbound.Generics.LocallyNameless
 
@@ -44,7 +44,6 @@ data REPLExpr =
  | Names
  deriving Show
 
-
 ------------------------------------------------------------
 -- REPL command types
 ------------------------------------------------------------
@@ -52,7 +51,12 @@ data REPLExpr =
 data ReplCommandType =
     User
   | Dev
-  deriving Show
+instance Show ReplCommandType where
+    show User = "User"
+    show Dev = "Dev"
+
+-- type CommandAction = REPLExpr -> Disco IErr ()
+
 ------------------------------------------------------------
 -- Commands
 ------------------------------------------------------------
@@ -61,6 +65,9 @@ data ReplCommand = ReplCommand
   , shortHelp :: String
   , longHelp :: String
   , cmdType :: ReplCommandType
-  , cmdAction :: String --REPLExpr -> Disco IErr ()
+  , cmdAction :: REPLExpr -> Disco IErr ()
   , cmdParser :: Parser REPLExpr
   }
+
+instance Show ReplCommand where
+    show c = "<<< " ++ (name c) ++ ">>>"
