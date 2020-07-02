@@ -12,37 +12,11 @@
 
 module Disco.Interactive.Eval where
 
-import           System.Console.Haskeline                as H
-import           Unbound.Generics.LocallyNameless.Unsafe (unsafeUnbind)
-
-import           Control.Arrow                           ((&&&))
-import           Control.Lens                            (use, (%=), (.=))
+import           Control.Lens                            (use)
 import           Control.Monad.Except
-import           Data.Coerce
-import qualified Data.Map                                as M
-import           System.FilePath                         (splitFileName)
-
-import           Unbound.Generics.LocallyNameless
-
-import           Disco.AST.Surface
-import           Disco.AST.Typed
-import           Disco.Compile
-import           Disco.Context
-import           Disco.Desugar
 import           Disco.Eval
-import           Disco.Extensions
 import           Disco.Interactive.Commands
 import           Disco.Interactive.Parser
-import           Disco.Interpret.Core
-import           Disco.Module
-import           Disco.Pretty
-import           Disco.Property
-import           Disco.Typecheck
-import           Disco.Typecheck.Erase
-import           Disco.Typecheck.Monad
-import           Disco.Types
-
-
 ------------------------------------------------------------
 
 import qualified Data.IntMap                             as IM
@@ -81,11 +55,14 @@ handleCMD s = do
       Right l -> handleLine l `catchError` (io . print  {- XXX pretty-print error -})
   where
     handleLine :: REPLExpr -> Disco IErr ()
-    handleLine r = execCommand r
-    -- handleLine (Using e)     = enabledExts %= addExtension e
-    -- handleLine (Let x t)     = handleLet x t
-    -- handleLine (Eval t)      = evalTerm t
-    -- handleLine (Import m)    = handleImport m
-    -- handleLine Nop           = return ()
+    handleLine r = case getCommand r of
+                    Just c -> getAction c r
+                    Nothing -> return ()
 
-
+-- handleTheRest :: REPLExpr -> Disco IErr ()    
+-- handleTheRest (Using e)     = enabledExts %= addExtension e
+-- handleTheRest (Let x t)     = handleLet x t
+-- handleTheRest (Eval t)      = evalTerm t
+-- handleTheRest (Import m)    = handleImport m
+-- handleTheRest Nop           = return ()
+-- handleTheRest _             = return ()

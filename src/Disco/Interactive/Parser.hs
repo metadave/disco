@@ -38,28 +38,14 @@ letParser = Let
   <$> ident
   <*> (symbol "=" *> term)
 
-commandParser :: [ReplCommand] -> Parser REPLExpr
+commandParser :: [REPLCommand] -> Parser REPLExpr
 commandParser allCommands = (symbol ":" *> many C.lowerChar) >>= (parseCommandArgs allCommands)
 
-parseCommandArgs ::  [ReplCommand] -> String -> Parser REPLExpr
+parseCommandArgs ::  [REPLCommand] -> String -> Parser REPLExpr
 parseCommandArgs allCommands cmd = maybe badCmd snd $ find ((cmd `isPrefixOf`) . fst) parsers
   where
     badCmd = fail $ "Command \":" ++ cmd ++ "\" is unrecognized."    
-    parsers = map (\rc -> (name rc, cmdParser rc)) allCommands
-    -- parsers =
-    --   [ ("type",    TypeCheck <$> parseTypeTarget)
-    --   , ("defn",    ShowDefn  <$> (sc *> ident))
-    --   , ("parse",   Parse     <$> term)
-    --   , ("pretty",  Pretty    <$> term)
-    --   , ("ann",     Ann       <$> term)
-    --   , ("desugar", Desugar   <$> term)
-    --   , ("compile", Compile   <$> term)
-    --   , ("load",    Load      <$> fileParser)
-    --   , ("reload",  return Reload)
-    --   , ("doc",     Doc       <$> (sc *> ident))
-    --   , ("help",    return Help)
-    --   , ("names",  return Names)
-    --   ]
+    parsers = map (\rc -> (name rc, parser rc)) allCommands
 
 parseTypeTarget :: Parser Term
 parseTypeTarget =
@@ -83,7 +69,7 @@ parseTypeTarget =
 fileParser :: Parser FilePath
 fileParser = many C.spaceChar *> many (satisfy (not . isSpace))
 
-lineParser :: [ReplCommand] -> Parser REPLExpr
+lineParser :: [REPLCommand] -> Parser REPLExpr
 lineParser allCommands
   =   (commandParser allCommands)
   <|> try (Nop <$ (sc <* eof))
@@ -92,7 +78,7 @@ lineParser allCommands
   <|> try (Eval <$> term)
   <|> letParser
 
-parseLine :: [ReplCommand] -> ExtSet -> String -> Either String REPLExpr
+parseLine :: [REPLCommand] -> ExtSet -> String -> Either String REPLExpr
 parseLine allCommands exts s =
   case (runParser (withExts exts (lineParser allCommands)) "" s) of
     Left  e -> Left $ errorBundlePretty e
