@@ -10,7 +10,7 @@
 -----------------------------------------------------------------------------
 
 module Disco.Interactive.Types
-  ( REPLExpr(..), REPLCommand(..), REPLCommandCategory(..), REPLCommandType(..)) 
+  ( REPLExpr(..), REPLCommand(..), REPLCommandCategory(..), REPLCommandType(..))
   where
 
 import           Unbound.Generics.LocallyNameless
@@ -49,28 +49,26 @@ data REPLExpr =
 ------------------------------------------------------------
 
 data REPLCommandCategory =
-    User
-  | Dev
-instance Show REPLCommandCategory where
-    show User = "User"
-    show Dev = "Dev"
+    User    -- for everyday users
+  | Dev     -- for developers working on Disco
+  deriving (Eq, Show)
 
 data REPLCommandType =
     BuiltIn   -- let, import, using, eval
   | ColonCmd  -- :help, :names, :load...
+  deriving (Eq, Show)
 
 ------------------------------------------------------------
 -- Commands
 ------------------------------------------------------------
+
 data REPLCommand = REPLCommand
-  { name      :: String 
+  { name      :: String
   , shortHelp :: String
   , longHelp  :: String
   , category  :: REPLCommandCategory
-  , cmdtype      :: REPLCommandType
+  , cmdtype   :: REPLCommandType
   , action    :: REPLExpr -> Disco IErr ()
   , parser    :: Parser REPLExpr
   }
 
-instance Show REPLCommand where
-    show c = "<<< " ++ (name c) ++ ">>>"

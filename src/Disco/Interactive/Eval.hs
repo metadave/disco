@@ -55,14 +55,7 @@ handleCMD s = do
       Right l -> handleLine l `catchError` (io . print  {- XXX pretty-print error -})
   where
     handleLine :: REPLExpr -> Disco IErr ()
-    handleLine r = case getCommand r of
+    handleLine r = case getCommand r allCommands of
                     Just c -> getAction c r
                     Nothing -> return ()
 
--- handleTheRest :: REPLExpr -> Disco IErr ()    
--- handleTheRest (Using e)     = enabledExts %= addExtension e
--- handleTheRest (Let x t)     = handleLet x t
--- handleTheRest (Eval t)      = evalTerm t
--- handleTheRest (Import m)    = handleImport m
--- handleTheRest Nop           = return ()
--- handleTheRest _             = return ()

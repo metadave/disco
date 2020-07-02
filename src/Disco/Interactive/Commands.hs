@@ -9,15 +9,14 @@
 -----------------------------------------------------------------------------
 
 module Disco.Interactive.Commands
-  ( 
+  (
+    allCommands,
     discoBuiltins,
     discoCommands,
-    --importCmd,
     getAction,
     getCommand,
     handleLoad,
-    loadFile,
-    --typeCheckCmd
+    loadFile
   ) where
 
 import           Disco.Parser   (sc, ident, term)
@@ -30,7 +29,7 @@ import           Control.Arrow                           ((&&&))
 import           Control.Lens                            (use, (%=), (.=))
 import           Control.Monad.Except
 import           Data.Coerce
-import           Data.List                               (find)
+import           Data.List                               (find, sortBy)
 import qualified Data.Map                                as M
 import           System.FilePath                         (splitFileName)
 
@@ -55,24 +54,21 @@ import           Disco.Typecheck.Erase
 import           Disco.Typecheck.Monad
 import           Disco.Types
 
--- isCommand :: REPLExpr -> Bool
--- isCommand r = isJust $ toTag r
-
+-- | Allow getting an action from a REPLCommand outside of this module
 getAction :: REPLCommand -> REPLExpr -> Disco IErr ()
 getAction = action
 
--- TODO: move discoCommands out?
-getCommand :: REPLExpr -> Maybe REPLCommand
-getCommand r = tag >>= findIt
+-- | Search for a command to handle a given REPLExpr
+getCommand :: REPLExpr -> [REPLCommand] -> Maybe REPLCommand
+getCommand r commandList = findIt $ toTag r
           where
-            tag = toTag r
-            findIt tagname = find (\c -> name c == tagname) allCommands
+            findIt tagname = find (\c -> name c == tagname) commandList
 
 allCommands :: [REPLCommand]
 allCommands = discoBuiltins ++ discoCommands
 
 discoBuiltins :: [REPLCommand]
-discoBuiltins = 
+discoBuiltins =
   [
     importCmd,
     letCmd,
@@ -81,9 +77,8 @@ discoBuiltins =
     evalCmd
   ]
 
---  uncons >>= action                      
 discoCommands :: [REPLCommand]
-discoCommands = 
+discoCommands =
   [
     annCmd,
     compileCmd,
@@ -99,26 +94,27 @@ discoCommands =
     typeCheckCmd
   ]
 
--- TODO: I don't need Maybe anymore
-toTag :: REPLExpr -> Maybe String
-toTag (TypeCheck _) = Just $ name typeCheckCmd
-toTag (Let _ _ ) = Just $ name letCmd
-toTag (Eval _) = Just $ name evalCmd
-toTag (ShowDefn _ ) = Just $ name showDefnCmd
-toTag (Parse _) = Just $ name parseCmd
-toTag (Pretty _) = Just $ name prettyCmd
-toTag (Ann _) = Just $ name annCmd
-toTag (Desugar _) = Just $ name desugarCmd
-toTag (Compile _) = Just $ name compileCmd
-toTag (Import _) = Just $ name importCmd
-toTag (Load _) = Just $ name loadCmd
-toTag Reload = Just $ name reloadCmd
-toTag (Doc _) = Just $ name docCmd
-toTag Nop = Just $ name nopCmd
-toTag Help = Just $ name helpCmd
-toTag Names = Just $ name namesCmd
-toTag (Using _) = Just $ name usingCmd
 
+-- | Turns a REPLExpr into a single string as a way 
+--   to exec REPLCommand actions dynamically 
+toTag :: REPLExpr -> String
+toTag (TypeCheck _) = name typeCheckCmd
+toTag (Let _ _    ) = name letCmd
+toTag (Eval     _ ) = name evalCmd
+toTag (ShowDefn _ ) = name showDefnCmd
+toTag (Parse    _ ) = name parseCmd
+toTag (Pretty   _ ) = name prettyCmd
+toTag (Ann      _ ) = name annCmd
+toTag (Desugar  _ ) = name desugarCmd
+toTag (Compile  _ ) = name compileCmd
+toTag (Import   _ ) = name importCmd
+toTag (Load     _ ) = name loadCmd
+toTag Reload        = name reloadCmd
+toTag (Doc _)       = name docCmd
+toTag Nop           = name nopCmd
+toTag Help          = name helpCmd
+toTag Names         = name namesCmd
+toTag (Using _)     = name usingCmd
 
 
 ------------------------------------------
@@ -126,47 +122,47 @@ toTag (Using _) = Just $ name usingCmd
 ------------------------------------------
 
 annCmd :: REPLCommand
-annCmd = 
+annCmd =
     REPLCommand {
       name = "ann",
-      shortHelp = "",
+      shortHelp = "Show type-annotated typechecked term",
       longHelp = "",
-      category = User,
+      category = Dev,
       cmdtype = ColonCmd,
-      action = handleAnn,
+      action = handleAnnWrapper,
       parser = Ann <$> term
     }
 
 
 compileCmd :: REPLCommand
-compileCmd = 
+compileCmd =
     REPLCommand {
       name = "compile",
-      shortHelp = "",
+      shortHelp = "Show a compiled term",
       longHelp = "",
-      category = User,
+      category = Dev,
       cmdtype = ColonCmd,
-      action = handleCompile,
+      action = handleCompileWrapper,
       parser = Compile   <$> term
     }
 
 desugarCmd :: REPLCommand
-desugarCmd = 
+desugarCmd =
     REPLCommand {
       name = "desugar",
-      shortHelp = "",
+      shortHelp = "Show a desugared term",
       longHelp = "",
-      category = User,
+      category = Dev,
       cmdtype = ColonCmd,
       action = handleDesugar,
       parser = Desugar   <$> term
     }
 
 docCmd :: REPLCommand
-docCmd = 
+docCmd =
     REPLCommand {
       name = "doc",
-      shortHelp = "",
+      shortHelp = "Show documentation",
       longHelp = "",
       category = User,
       cmdtype = ColonCmd,
@@ -175,10 +171,10 @@ docCmd =
     }
 
 evalCmd :: REPLCommand
-evalCmd = 
+evalCmd =
     REPLCommand {
       name = "eval",
-      shortHelp = "",
+      shortHelp = "Evaluate a term",
       longHelp = "",
       category = User,
       cmdtype = BuiltIn,
@@ -188,11 +184,11 @@ evalCmd =
 
 
 helpCmd :: REPLCommand
-helpCmd = 
+helpCmd =
     REPLCommand {
       name = "help",
       shortHelp = "Show help",
-      longHelp = "Show help",
+      longHelp = "",
       category = User,
       cmdtype = ColonCmd,
       action = handleHelp,
@@ -200,10 +196,10 @@ helpCmd =
     }
 
 importCmd :: REPLCommand
-importCmd = 
+importCmd =
     REPLCommand {
       name = "import",
-      shortHelp = "",
+      shortHelp = "Import a library module",
       longHelp = "",
       category = User,
       cmdtype = BuiltIn,
@@ -212,10 +208,10 @@ importCmd =
     }
 
 letCmd :: REPLCommand
-letCmd = 
+letCmd =
     REPLCommand {
       name = "let",
-      shortHelp = "",
+      shortHelp = "Toplevel let-expression: for the REPL",
       longHelp = "",
       category = User,
       cmdtype = BuiltIn,
@@ -224,14 +220,14 @@ letCmd =
     }
 
 loadCmd :: REPLCommand
-loadCmd = 
+loadCmd =
     REPLCommand {
       name = "load",
-      shortHelp = "",
+      shortHelp = "Load a file",
       longHelp = "",
       category = User,
       cmdtype = ColonCmd,
-      action = handleLoadGen,
+      action = handleLoadWrapper,
       parser = Load <$> fileParser
     }
 
@@ -240,7 +236,7 @@ namesCmd =
     REPLCommand {
       name = "names",
       shortHelp = "Show all names in current scope",
-      longHelp = "Show all names in current scope",
+      longHelp = "",
       category = User,
       cmdtype = ColonCmd,
       action = handleNames,
@@ -251,31 +247,31 @@ nopCmd :: REPLCommand
 nopCmd =
     REPLCommand {
       name = "nop",
-      shortHelp = "",
+      shortHelp = "No-op, e.g. if the user just enters a comment",
       longHelp = "",
-      category = User,
+      category = Dev,
       cmdtype = BuiltIn,
       action = handleNop,
       parser = Nop <$ (sc <* eof)
-    }
+    } -- TODO
 
 parseCmd :: REPLCommand
-parseCmd = 
+parseCmd =
     REPLCommand {
       name = "parse",
-      shortHelp = "",
+      shortHelp = "Show the parsed AST",
       longHelp = "",
-      category = User,
+      category = Dev,
       cmdtype = ColonCmd,
       action = handleParse,
       parser = Parse <$> term
     }
 
 prettyCmd :: REPLCommand
-prettyCmd = 
+prettyCmd =
     REPLCommand {
       name = "pretty",
-      shortHelp = "",
+      shortHelp = "Pretty-print a term",
       longHelp = "",
       category = User,
       cmdtype = ColonCmd,
@@ -284,10 +280,10 @@ prettyCmd =
     }
 
 reloadCmd :: REPLCommand
-reloadCmd = 
+reloadCmd =
     REPLCommand {
       name = "reload",
-      shortHelp = "",
+      shortHelp = "Reloads the most recently loaded file",
       longHelp = "",
       category = User,
       cmdtype = ColonCmd,
@@ -296,10 +292,10 @@ reloadCmd =
     }
 
 showDefnCmd :: REPLCommand
-showDefnCmd = 
+showDefnCmd =
     REPLCommand {
       name = "defn",
-      shortHelp = "",
+      shortHelp = "Show a variable's definition",
       longHelp = "",
       category = User,
       cmdtype = ColonCmd,
@@ -308,11 +304,11 @@ showDefnCmd =
     }
 
 typeCheckCmd :: REPLCommand
-typeCheckCmd = 
+typeCheckCmd =
     REPLCommand {
         name = "type",
         shortHelp = "Typecheck a term",
-        longHelp = "Typecheck a term",
+        longHelp = "",
         category = User,
         cmdtype = ColonCmd,
         action = handleTypeCheck,
@@ -320,12 +316,12 @@ typeCheckCmd =
         }
 
 usingCmd :: REPLCommand
-usingCmd = 
+usingCmd =
     REPLCommand {
         name = "using",
-        shortHelp = "",
+        shortHelp = "Enable an extension",
         longHelp = "",
-        category = User,
+        category = Dev,
         cmdtype = BuiltIn,
         action = handleUsing,
         parser = Using <$> (reserved "using" *> parseExtName)
@@ -335,29 +331,25 @@ usingCmd =
 ------------------------------------------
 --- Command implementations
 ------------------------------------------
--- handleAnn :: Term -> Disco IErr String
-handleAnn :: REPLExpr -> Disco IErr ()
-handleAnn (Ann t) = 
-  handleAnn2 t >>= iputStrLn
-handleAnn _ = return ()
 
--- TODO
-handleAnn2 :: Term -> Disco IErr String
-handleAnn2 t = do
-  ctx <- use topCtx
-  tymap <- use topTyDefns
-  case (evalTCM $ extends ctx $ withTyDefns tymap $ inferTop t) of
-    Left e       -> return . show $ e
-    Right (at,_) -> return . show $ at
+handleAnnWrapper :: REPLExpr -> Disco IErr ()
+handleAnnWrapper (Ann t) = handleAnn t >>= iputStrLn
+handleAnnWrapper _       = return ()
 
-handleCompile :: REPLExpr -> Disco IErr ()
-handleCompile (Compile t) = 
-  handleCompile2 t          >>= iputStrLn
-handleCompile _ = return ()
+handleAnn :: Term -> Disco IErr String
+handleAnn t = do
+    ctx   <- use topCtx
+    tymap <- use topTyDefns
+    case (evalTCM $ extends ctx $ withTyDefns tymap $ inferTop t) of
+        Left  e       -> return . show $ e
+        Right (at, _) -> return . show $ at
 
--- TODO
-handleCompile2 :: Term -> Disco IErr String
-handleCompile2 t = do
+handleCompileWrapper :: REPLExpr -> Disco IErr ()
+handleCompileWrapper (Compile t) = handleCompile t >>= iputStrLn
+handleCompileWrapper _           = return ()
+
+handleCompile :: Term -> Disco IErr String
+handleCompile t = do
   ctx <- use topCtx
   case evalTCM (extends ctx $ inferTop t) of
     Left e       -> return.show $ e
@@ -374,11 +366,11 @@ handleDesugar (Desugar t0) = handleDesugar_ t0 >>= iputStrLn
 handleDesugar _ = return ()
 
 handleDoc :: REPLExpr -> Disco IErr ()
-handleDoc (Doc x0) = 
-  handleDocs x0
-  where 
-    handleDocs :: Name Term -> Disco IErr ()
-    handleDocs x = do
+handleDoc (Doc x0) =
+  handleDoc_ x0
+  where
+    handleDoc_ :: Name Term -> Disco IErr ()
+    handleDoc_ x = do
       ctx  <- use topCtx
       docs <- use topDocs
       case M.lookup x ctx of
@@ -394,8 +386,12 @@ handleDoc _ = return ()
 
 handleHelp :: REPLExpr -> Disco IErr ()
 handleHelp _ = do
-                mapM_ (\c -> iputStrLn $ ":" ++ name c ++ "\t" ++ shortHelp c) discoCommands
-  
+    iputStrLn "Commands available from the prompt:"
+    mapM_ (\c -> iputStrLn $ ":" ++ name c ++ "\t\t" ++ shortHelp c) $ sortedList allCommands
+    iputStrLn ""
+    where
+      sortedList cmds = sortBy (\x y -> compare (name x) (name y)) $ commandList cmds
+      commandList cmds = filter (\c -> category c == User && cmdtype c == ColonCmd) cmds
 
 handleImport :: REPLExpr -> Disco IErr ()
 handleImport (Import i) = handleImport_ i
@@ -408,10 +404,10 @@ handleImport _ = return ()
 -- | Parses, typechecks, and loads a module by first recursively loading any imported
 --   modules by calling loadDiscoModule. If no errors are thrown, any tests present
 --   in the parent module are executed.
-handleLoadGen :: REPLExpr -> Disco IErr ()
-handleLoadGen (Load file) = 
+handleLoadWrapper :: REPLExpr -> Disco IErr ()
+handleLoadWrapper (Load file) =
   handleLoad file >> lastFile .= Just file >>return ()
-handleLoadGen _ = return ()
+handleLoadWrapper _ = return ()
 
 handleLoad :: FilePath -> Disco IErr Bool
 handleLoad fp = catchAndPrintErrors False $ do
@@ -442,7 +438,7 @@ handleReload _ = do
                     Just f  -> handleLoad f >> return()
 
 handleShowDefn :: REPLExpr -> Disco IErr ()
-handleShowDefn (ShowDefn x0) = 
+handleShowDefn (ShowDefn x0) =
   handleShowDefn_ x0 >>= iputStrLn
   where
   handleShowDefn_ x = do
@@ -459,9 +455,9 @@ handleShowDefn _ = return ()
 
 
 handleTypeCheck :: REPLExpr -> Disco IErr ()
-handleTypeCheck (TypeCheck t0) = 
+handleTypeCheck (TypeCheck t0) =
     handleTypeCheck_ t0 >>= iputStrLn
-    where 
+    where
     handleTypeCheck_ t = do
       ctx <- use topCtx
       tymap <- use topTyDefns
@@ -472,7 +468,7 @@ handleTypeCheck _ = return ()
 
 handleUsing :: REPLExpr -> Disco IErr ()
 handleUsing (Using e) = enabledExts %= addExtension e
-handleUsing _ = return () -- TODO
+handleUsing _ = return ()
 
 -- | show names and types for each item in 'topCtx'
 handleNames :: REPLExpr -> Disco IErr ()
@@ -592,10 +588,8 @@ prettyCounterexample ctx env
       Just val -> val
       Nothing  -> error $ "Failed M.! with key " ++ show k ++ " in map " ++ show m
 
-------
-
 handleLet :: REPLExpr -> Disco IErr ()
-handleLet (Let nt t0) = 
+handleLet (Let nt t0) =
     handleLet_ nt t0
     where
       handleLet_ x t = do
@@ -613,10 +607,9 @@ handleLet (Let nt t0) =
             topEnv   %= M.insert (coerce x) thnk
 handleLet _ = return ()
 
--- TODO
 handleEval :: REPLExpr -> Disco IErr ()
 handleEval (Eval e) = evalTerm e
-handleEval _ = return () -- TODO
+handleEval _ = return ()
 
 evalTerm :: Term -> Disco IErr ()
 evalTerm t = do

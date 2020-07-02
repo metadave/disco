@@ -44,7 +44,7 @@ commandParser allCommands = (symbol ":" *> many C.lowerChar) >>= (parseCommandAr
 parseCommandArgs ::  [REPLCommand] -> String -> Parser REPLExpr
 parseCommandArgs allCommands cmd = maybe badCmd snd $ find ((cmd `isPrefixOf`) . fst) parsers
   where
-    badCmd = fail $ "Command \":" ++ cmd ++ "\" is unrecognized."    
+    badCmd = fail $ "Command \":" ++ cmd ++ "\" is unrecognized."
     parsers = map (\rc -> (name rc, parser rc)) allCommands
 
 parseTypeTarget :: Parser Term
