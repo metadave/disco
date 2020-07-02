@@ -93,6 +93,7 @@ discoCommands =
     loadCmd,
     namesCmd,
     parseCmd,
+    prettyCmd,
     reloadCmd,
     showDefnCmd,
     typeCheckCmd
