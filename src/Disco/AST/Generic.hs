@@ -88,7 +88,7 @@ module Disco.AST.Generic
        , X_TContainerComp
        , X_TAscr
        , X_Term
-
+       , X_TGraph
        , ForallTerm
 
        -- * Link
@@ -140,6 +140,7 @@ module Disco.AST.Generic
        , X_PNeg
        , X_PFrac
        , X_Pattern
+       , X_PGraph
        , ForallPattern
 
        -- * Property
@@ -273,6 +274,7 @@ type family X_TContainer e
 type family X_TContainerComp e
 type family X_TAscr e
 type family X_Term e
+type family X_TGraph e
 
 -- | The base generic AST representing terms in the disco language.
 --   @e@ is a type index indicating the kind of term, i.e. the phase
@@ -356,6 +358,9 @@ data Term_ e where
   -- | A data constructor with an extension descriptor that a "concrete"
   --   implementation of a generic AST may use to carry extra information.
   XTerm_   :: X_Term e -> Term_ e
+
+  TGraph_  :: X_TGraph e -> Integer -> Term_ e
+
   deriving (Generic)
 
 -- A type that abstracts over constraints for generic data constructors.
@@ -383,6 +388,7 @@ type ForallTerm (a :: * -> Constraint) e
     , a (X_TContainerComp e)
     , a (X_TAscr e)
     , a (X_Term e)
+    , a (X_TGraph e)
     , a (Qual_ e)
     , a (Guard_ e)
     , a (Link_ e)
@@ -534,6 +540,7 @@ type family X_PSub e
 type family X_PNeg e
 type family X_PFrac e
 type family X_Pattern e
+type family X_PGraph e
 
 -- | Patterns.
 data Pattern_ e where
@@ -592,6 +599,9 @@ data Pattern_ e where
   -- | Expansion slot.
   XPattern_ :: X_Pattern e -> Pattern_ e
 
+  -- | A Graph TODO
+  PGraph_ :: X_PGraph e -> Integer -> Pattern_ e
+  
   deriving (Generic)
 
 type ForallPattern (a :: * -> Constraint) e
@@ -613,6 +623,7 @@ type ForallPattern (a :: * -> Constraint) e
         , a (X_PNeg e)
         , a (X_PFrac e)
         , a (X_Pattern e)
+        , a (X_PGraph e)
         , a (Term_ e)
         )
 

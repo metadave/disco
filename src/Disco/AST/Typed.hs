@@ -42,6 +42,7 @@ module Disco.AST.Typed
        , pattern ATContainerComp
        , pattern ATList
        , pattern ATListComp
+       , pattern ATGraph
 
        , ALink
        , pattern ATLink
@@ -77,7 +78,7 @@ module Disco.AST.Typed
        , pattern APSub
        , pattern APNeg
        , pattern APFrac
-
+       , pattern APGraph
        , pattern ABinding
          -- * Utilities
        , getType
@@ -132,6 +133,7 @@ type instance X_TContainerComp  TY = Type
 type instance X_TAscr           TY = Void -- No more type ascriptions in typechecked terms
 type instance X_TTup            TY = Type
 type instance X_TParens         TY = Void -- No more explicit parens
+type instance X_TGraph          TY = Type
 
 type instance X_Term TY = Void
 
@@ -189,9 +191,12 @@ pattern ATContainer ty c tl mets = TContainer_ ty c tl mets
 pattern ATContainerComp :: Type -> Container -> Bind (Telescope AQual) ATerm -> ATerm
 pattern ATContainerComp ty c b = TContainerComp_ ty c b
 
+pattern ATGraph :: Type -> Integer -> ATerm
+pattern ATGraph ty term = TGraph_ ty term
+
 {-# COMPLETE ATVar, ATPrim, ATLet, ATUnit, ATBool, ATNat, ATRat, ATChar,
              ATString, ATAbs, ATApp, ATTup, ATInj, ATCase, ATChain, ATTyOp,
-             ATContainer, ATContainerComp #-}
+             ATContainer, ATContainerComp, ATGraph #-}
 
 pattern ATList :: Type -> [ATerm] -> Maybe (Ellipsis ATerm) -> ATerm
 pattern ATList t xs e <- ATContainer t ListContainer (map fst -> xs) e
@@ -273,6 +278,7 @@ type instance X_PMul     TY = Embed Type
 type instance X_PSub     TY = Embed Type
 type instance X_PNeg     TY = Embed Type
 type instance X_PFrac    TY = Embed Type
+type instance X_PGraph   TY = Embed Type
 
 type instance X_Pattern  TY = ()
 
@@ -348,8 +354,14 @@ pattern APFrac ty p1 p2 <- PFrac_ (unembed -> ty) p1 p2
   where
     APFrac ty p1 p2 = PFrac_ (embed ty) p1 p2
 
+pattern APGraph  :: Type -> Integer -> APattern
+pattern APGraph ty i <- PGraph_ (unembed -> ty) i
+  where
+    APGraph ty i = PGraph_ (embed ty) i
+
+
 {-# COMPLETE APVar, APWild, APUnit, APBool, APChar, APString,
-    APTup, APInj, APNat, APCons, APList, APAdd, APMul, APSub, APNeg, APFrac #-}
+    APTup, APInj, APNat, APCons, APList, APAdd, APMul, APSub, APNeg, APFrac, APGraph #-}
 
 ------------------------------------------------------------
 -- getType
@@ -374,6 +386,7 @@ instance HasType ATerm where
   getType (ATContainerComp ty _ _) = ty
   getType (ATLet ty _)             = ty
   getType (ATCase ty _)            = ty
+  getType (ATGraph ty _)           = ty
 
   setType ty (ATVar _ x      )       = ATVar ty x
   setType ty (ATPrim _ x     )       = ATPrim ty x
@@ -393,6 +406,7 @@ instance HasType ATerm where
   setType ty (ATContainerComp _ x y) = ATContainerComp ty x y
   setType ty (ATLet _ x      )       = ATLet ty x
   setType ty (ATCase _ x     )       = ATCase ty x
+  setType ty (ATGraph _ x     )      = ATGraph ty x
 
 instance HasType APattern where
   getType (APVar ty _)     = ty
@@ -411,6 +425,7 @@ instance HasType APattern where
   getType (APSub ty _ _)   = ty
   getType (APNeg ty _)     = ty
   getType (APFrac ty _ _)  = ty
+  getType (APGraph ty _)  = ty
 
 instance HasType ABranch where
   getType = getType . snd . unsafeUnbind

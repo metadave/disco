@@ -105,6 +105,7 @@ eraseDTerm (DTChar c)       = TChar c
 eraseDTerm (DTNat _ n)      = TNat n
 eraseDTerm (DTRat r)        = TRat r
 eraseDTerm (DTLam _ b)      = TAbs $ bind [PVar (coerce x)] (eraseDTerm dt)
+eraseDTerm (DTGraph _ n)    = TGraph n
   where (x, dt) = unsafeUnbind b
 eraseDTerm (DTApp _ d1 d2)  = TApp (eraseDTerm d1) (eraseDTerm d2)
 eraseDTerm (DTPair _ d1 d2) = TTup [eraseDTerm d1, eraseDTerm d2]

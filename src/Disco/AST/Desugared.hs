@@ -34,6 +34,7 @@ module Disco.AST.Desugared
        , pattern DTCase
        , pattern DTTyOp
        , pattern DTNil
+       , pattern DTGraph
 
        , Container(..)
        , DBinding
@@ -56,7 +57,7 @@ module Disco.AST.Desugared
        , pattern DPFrac
        , pattern DPCons
        , pattern DPNil
-
+       , pattern DPGraph
        , DProperty
        )
        where
@@ -105,6 +106,7 @@ type instance X_TContainerComp DS = Void -- Container comprehensions are transla
 type instance X_TAscr DS          = Void -- No type ascriptions
 type instance X_TTup DS           = Void -- No tuples, only pairs
 type instance X_TParens DS        = Void -- No explicit parens
+type instance X_TGraph DS         = Type
 
 -- Extra constructors
 type instance X_Term DS =
@@ -154,9 +156,13 @@ pattern DTTyOp ty1 tyop ty2 = TTyOp_ ty1 tyop ty2
 pattern DTNil :: Type -> DTerm
 pattern DTNil ty = XTerm_ (Right ty)
 
+pattern DTGraph :: Type -> Integer -> DTerm
+pattern DTGraph n term = TGraph_ n term
+
+
 {-# COMPLETE DTVar, DTPrim, DTUnit, DTBool, DTChar, DTNat, DTRat,
              DTLam, DTApp, DTPair, DTInj, DTCase, DTTyOp,
-             DTNil #-}
+             DTNil, DTGraph #-}
 
 type instance X_TLink DS = Void
 
@@ -199,6 +205,7 @@ type instance X_PMul     DS = Void
 type instance X_PSub     DS = Void
 type instance X_PNeg     DS = Void
 type instance X_PFrac    DS = Void
+type instance X_PGraph   DS = Void
 
 -- In the desugared language, constructor patterns (DPPair, DPInj,
 -- DPCons) can only contain variables, not nested patterns.  This
@@ -269,8 +276,13 @@ pattern DPNil ty <- XPattern_ (Right (Right (Right (Right (unembed -> ty)))))
   where
     DPNil ty = XPattern_ (Right (Right (Right (Right (embed ty)))))
 
+pattern DPGraph  :: Type -> Integer -> DPattern
+pattern DPGraph ty n <- PGraph_ (unembed -> ty) n
+  where
+    DPGraph ty n = PGraph_ (embed ty) n
+
 {-# COMPLETE DPVar, DPWild, DPUnit, DPBool, DPChar, DPPair, DPInj,
-    DPNat, DPFrac, DPNil, DPCons #-}
+    DPNat, DPFrac, DPNil, DPCons, DPGraph #-}
 
 type instance X_QBind  DS = Void
 type instance X_QGuard DS = Void
@@ -294,6 +306,7 @@ instance HasType DTerm where
   getType (DTCase ty _)   = ty
   getType (DTTyOp ty _ _) = ty
   getType (DTNil ty)      = ty
+  getType (DTGraph ty _)  = ty
 
 instance HasType DPattern where
   getType (DPVar ty _)    = ty
@@ -307,3 +320,4 @@ instance HasType DPattern where
   getType (DPFrac ty _ _) = ty
   getType (DPNil ty)      = ty
   getType (DPCons ty _ _) = ty
+  getType (DPGraph ty _)  = ty

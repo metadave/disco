@@ -58,6 +58,7 @@ module Disco.AST.Surface
        , pattern TWild
        , pattern TList
        , pattern TListComp
+       , pattern TGraph
 
          -- ** Telescopes
        , Telescope(..), foldTelescope, mapTelescope, toTelescope, fromTelescope
@@ -104,7 +105,7 @@ module Disco.AST.Surface
        , pattern PSub
        , pattern PNeg
        , pattern PFrac
-
+       , pattern PGraph
        , pattern Binding
        )
        where
@@ -214,6 +215,7 @@ type instance X_TContainer      UD = ()
 type instance X_TContainerComp  UD = ()
 type instance X_TAscr           UD = ()
 type instance X_Term            UD = ()  -- TWild
+type instance X_TGraph          UD = ()
 
 pattern TVar :: Name Term -> Term
 pattern TVar name = TVar_ () name
@@ -280,6 +282,14 @@ pattern TContainerComp c b = TContainerComp_ () c b
 
 pattern TAscr :: Term -> PolyType -> Term
 pattern TAscr term ty = TAscr_ () term ty
+
+pattern TGraph :: Integer -> Term
+pattern TGraph int = TGraph_ () int
+
+--  TGraph_  :: X_TGraph e -> Integer -> Term_ e
+--   TInj_   :: X_TInj e -> Side -> Term_ e -> Term_ e
+
+
 
 -- Since we parse patterns by first parsing a term and then ensuring
 -- it is a valid pattern, we have to include wildcards in the syntax
@@ -367,6 +377,7 @@ type instance X_PSub UD    = ()
 type instance X_PNeg UD    = ()
 type instance X_PFrac UD   = ()
 type instance X_Pattern UD = Void
+type instance X_PGraph UD  = ()
 
 pattern PVar :: Name Term -> Pattern
 pattern PVar name = PVar_ () name
@@ -421,5 +432,9 @@ pattern PNeg p = PNeg_ () p
 pattern PFrac :: Pattern -> Pattern -> Pattern
 pattern PFrac p1 p2 = PFrac_ () p1 p2
 
+pattern PGraph :: Integer -> Pattern
+pattern PGraph n = PGraph_ () n
+
+
 {-# COMPLETE PVar, PWild, PAscr, PUnit, PBool, PTup, PInj, PNat,
-             PChar, PString, PCons, PList, PAdd, PMul, PSub, PNeg, PFrac #-}
+             PChar, PString, PCons, PList, PAdd, PMul, PSub, PNeg, PFrac, PGraph #-}
